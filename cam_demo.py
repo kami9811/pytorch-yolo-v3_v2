@@ -1,20 +1,21 @@
 from __future__ import division
 import time
 import torch
-import torch.nn as nn
+# import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
 import cv2
-from util import *
+from util import write_results, load_classes
 from darknet import Darknet
-from preprocess import prep_image, inp_to_image
-import pandas as pd
+# from preprocess import inp_to_image  # , prep_image
+# import pandas as pd
 import random
 import argparse
 import pickle as pkl
 import math
 
-
+# 使ってない
+'''
 def get_test_input(input_dim, CUDA):
     img = cv2.imread("imgs/messi.jpg")
     img = cv2.resize(img, (input_dim, input_dim))
@@ -27,6 +28,7 @@ def get_test_input(input_dim, CUDA):
         img_ = img_.cuda()
 
     return img_
+'''
 
 
 def prep_image(img, inp_dim):
@@ -38,6 +40,7 @@ def prep_image(img, inp_dim):
 
     orig_im = img
     dim = orig_im.shape[1], orig_im.shape[0]  # 1->width, 0->hight
+    # サイズ変更しているのは処理用のimg配列
     img = cv2.resize(orig_im, (inp_dim, inp_dim))  # 元の画像をreso指定に
     # ::-1 -> 後ろから1個ずつ参照（最初）:（最後）:（ステップ幅）, BGR->RGB
     # transpose h, w, c -> c, h, w
@@ -71,6 +74,7 @@ def write(x, img):
 
     # バグポイント0
     if(math.isnan(x[-1]) or x[1] == 0 or x[2] == 0 or x[3] == 0 or x[4] == 0):
+    # if(math.isnan(x[-1]) and x[1] == 0 and x[2] == 0 and x[3] == 0 and x[4] == 0):
         return [[np.nan]]
     else:
         cls = int(x[-1])
@@ -137,24 +141,23 @@ def arg_parse():
 
 if __name__ == '__main__':
 
-    cfgfile = "cfg/yolov3-tiny-obj.cfg"  # いじったcfgファイルの指定
+    cfgfile = "cfg/yolov3-tiny-tomato.cfg"  # いじったcfgファイルの指定
     # 注: あとで設定
-    weightsfile = "yolov3-tiny-obj-add_final.weights"  # weightsの指定
-    num_classes = 1  # クラス数, 今回はPeopleのみ
+    weightsfile = "yolov3-tiny-tomato_12000.weights"  # weightsの指定
+    num_classes = 6  # クラス数, 今回はPeopleのみ
     '''
-    cfgfile = "cfg/yolov3-tiny.cfg"
-    weightsfile = "yolov3-tiny.weights"
+    cfgfile = "cfg/yolov3.cfg"
+    weightsfile = "yolov3.weights"
     num_classes = 80
     '''
 
     args = arg_parse()
     confidence = float(args.confidence)
-    nms_thesh = float(args.nms_thresh)
+    nms_thresh = float(args.nms_thresh)
     weightsfile = args.wei
-    start = 0
+    start = 0  # fps計算に使用
     CUDA = torch.cuda.is_available()
 
-    num_classes = 1
     bbox_attrs = 5 + num_classes
 
     model = Darknet(cfgfile)
@@ -191,7 +194,7 @@ if __name__ == '__main__':
 
             # print(orig_im.shape)  # ex.(720, 1280, 3)
 
-#            im_dim = torch.FloatTensor(dim).repeat(1,2)
+            # im_dim = torch.FloatTensor(dim).repeat(1,2)
             # cuda入ってないから無視
             if CUDA:
                 im_dim = im_dim.cuda()
@@ -199,8 +202,9 @@ if __name__ == '__main__':
 
             output = model(Variable(img), CUDA)
             # ここでNNに通す
+            # util.pyに存在
             output = write_results(output, confidence, num_classes, nms=True,
-                                   nms_conf=nms_thesh)
+                                   nms_conf=nms_thresh)
 
             # 全然引っかからないからとりあえず無視？
             '''
@@ -224,8 +228,8 @@ if __name__ == '__main__':
             output[:, [1, 3]] *= frame.shape[1]  # width
             output[:, [2, 4]] *= frame.shape[0]  # hight
 
-            # classes = load_classes('data/coco.names')
             classes = load_classes('data/obj.names')
+            # classes = load_classes('data/coco.names')
             colors = pkl.load(open("pallete", "rb"))
 
             # lambdaとmapとlistの組み合わせ, xはoutputの要素を参照
@@ -233,7 +237,23 @@ if __name__ == '__main__':
             p_list = list(map(lambda x: write(x, orig_im), output))
             '''
             # 座標情報引き渡しのテスト, p_list[0][0][0]を見れば検知されたか確認可能
-            print(p_list)
+            # print(len(p_list))  # -> 人数（0人だと1)
+            # print(p_list)
+            ----------------
+            [[[nan]]]  # 0
+            [([160, 22], [202, 122])]  # 1
+            [([252, 188], [297, 283]), ([188, 5], [235, 98]), \
+            ([118, 27], [160, 131])]  # 3
+            # -> p_listはタプルとして現れる
+            # -> 検出がなかったときの処理を書きたいときは
+            #    if math.isnan(p_list[0][0][0]):
+            # タプルの扱い
+            #   p_list[n-1][0] -> n番目の矩形の左上座標[x, y]
+            #   p_list[n-1][1] -> n番目の矩形の右下座標[x, y]
+            # バグ修正のため, 座標点に0があるとnanにしていた
+            # -> p_list[n-1][0][0]がmath.isnanでTrueだと
+            #    その座標を採用しないとすると良さそう
+            ----------------
             if not math.isnan(p_list[0][0][0]):
                 print(p_list[0][0])
                 print(p_list[0][0][0])

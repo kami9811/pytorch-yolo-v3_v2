@@ -54,9 +54,15 @@ def write(x, img):
     cv2.rectangle(img, c1, c2,color, 1)
     t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1 , 1)[0]
     c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
-    cv2.rectangle(img, c1, c2,color, -1)
+    cv2.rectangle(img, c1, c2, color, -1)
     cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225,255,255], 1);
-    return img
+    # return img
+    # 検証用
+    x1 = x[1].int().item()
+    y1 = x[2].int().item()
+    x2 = x[3].int().item()
+    y2 = x[4].int().item()
+    return [x1, y1], [x2, y2]
 
 def arg_parse():
     """
@@ -72,17 +78,17 @@ def arg_parse():
                         default = "video.avi", type = str)
     parser.add_argument("--dataset", dest = "dataset", help = "Dataset on which the network has been trained", default = "pascal")
     # parser.add_argument("--confidence", dest = "confidence", help = "Object Confidence to filter predictions", default = 0.5)
-    parser.add_argument("--confidence", dest = "confidence", help = "Object Confidence to filter predictions", default = 0.15)
-    parser.add_argument("--nms_thresh", dest = "nms_thresh", help = "NMS Threshhold", default = 0.2)
+    parser.add_argument("--confidence", dest = "confidence", help = "Object Confidence to filter predictions", default = 0.25)
+    parser.add_argument("--nms_thresh", dest = "nms_thresh", help = "NMS Threshhold", default = 0.1)
     parser.add_argument("--cfg", dest = 'cfgfile', help =
                         "Config file",
-                        default = "cfg/yolov3-tiny-obj.cfg", type = str)
+                        default = "cfg/yolov3-tiny-obj-add.cfg", type = str)
     parser.add_argument("--weights", dest = 'weightsfile', help =
                         "weightsfile",
                         default = "yolov3-tiny-obj_final.weights", type = str)
     parser.add_argument("--reso", dest = 'reso', help =
                         "Input resolution of the network. Increase to increase accuracy. Decrease to increase speed",
-                        default = "416", type = str)
+                        default = "160", type = str)
     return parser.parse_args()
 
 
@@ -171,8 +177,14 @@ if __name__ == '__main__':
             classes = load_classes('data/coco.names')
             colors = pkl.load(open("pallete", "rb"))
 
-            list(map(lambda x: write(x, orig_im), output))
-
+            p_list = list(map(lambda x: write(x, orig_im), output))
+            print(p_list)
+            print(len(p_list))
+            print(p_list[0][0])
+            if not math.isnan(p_list[0][0][0]):
+                print(p_list[0][1])
+                if len(p_list) > 1:
+                    print(p_list[1][0])
 
             cv2.imshow("frame", orig_im)
             key = cv2.waitKey(1)

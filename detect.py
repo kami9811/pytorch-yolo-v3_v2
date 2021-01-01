@@ -112,9 +112,12 @@ if __name__ ==  '__main__':
 
     CUDA = torch.cuda.is_available()
 
-    num_classes = 1
+    # num_classes = 80
     # classes = load_classes('data/coco.names')
+    num_classes = 6
     classes = load_classes('data/obj.names')
+    # num_classes = 1
+    # classes = load_classes('data/obj.names')
 
     #Set up the neural network
     print("Loading network.....")
@@ -156,8 +159,6 @@ if __name__ ==  '__main__':
     orig_ims = [x[1] for x in batches]
     im_dim_list = [x[2] for x in batches]
     im_dim_list = torch.FloatTensor(im_dim_list).repeat(1,2)
-
-
 
     if CUDA:
         im_dim_list = im_dim_list.cuda()
@@ -236,8 +237,6 @@ if __name__ ==  '__main__':
             write = 1
         else:
             output = torch.cat((output,prediction))
-
-
 
 
         for im_num, image in enumerate(imlist[i*batch_size: min((i +  1)*batch_size, len(imlist))]):
